@@ -2,17 +2,54 @@ import random
 from typing import Tuple, List
 import pygame
 from cell import Cell
+from sweeper_enums import SweeperFonts
+
+pygame.font.init()
 
 
 class GameBoard:
-    pygame.font.init()
-    font_path = pygame.font.match_font("ArialRounded")
-    arial = pygame.font.Font(font_path, 18)
+
+    # region --------------- theme settings ---------------
+
+    THEME_FONT1 = SweeperFonts.ACADEMY_20
+    THEME_FONT2 = SweeperFonts.ARIAL_18
+
+    # endregion
 
     def __init__(self, cells_x: int, cells_y: int, bombs: int, cell_size: int):
-        """ This class represents a minesweeper game board.
-        As a public property, Gameboard provides `board` a 2-d matrix containing all the cells on the board.
-        each :class:`Cell`
+        """
+        This class represents a minesweeper game board.
+
+
+        \f As a public property, :class:`GameBoard` provides the following properties and methods:
+
+        :class:`GameBoard` Properties:
+          ===================
+          - *cell_matrix* :class:`List`\[:class:`List`\[:class:`Cell`]]:
+              2-d matrix containing all the cells on the board.
+          - *num_cells_x* :class:`int`:
+              the number of cells in the x-axis of the cell matrix
+          - *num_cells_y*  :class:`int`:
+              the number of cells in the y-axis of the cell matrix
+          - *num_mines*  :class:`int`:
+              the number of mines on the board
+          - *cell_size*  :class:`int`:
+              the length of a single side of a cell, each mine is a square
+
+         ::
+
+        Public Methods:
+         =============
+         - :method:`draw_board`\ (self, screen: :class:`pygame.Surface`)
+         - :method:`zero_clicked`\ (self, current_cell::class:`Cell`)
+         - :method:`draw_board`\ (self, screen::class:`pygame.Surface`)
+
+
+        -----
+
+        \f each :class:`Cell` is similar to the links in aLinked List or Graph like data structure.
+        |
+        -----
 
         :param cells_x: the number of columns on the board
         :param cells_y: the number of rows on the board
@@ -71,11 +108,10 @@ class GameBoard:
         :param screen: the main game display
         """
 
-        font_path = pygame.font.match_font("ArialRounded")
-        arial = pygame.font.Font(font_path, 18)
-
         # traverse the 2-d list of cells checking for bombs.
         # -1 == bomb, 0 == no bomb
+
+        writer = SweeperFonts.ARIAL_18.value
         for row in range(self.num_cells_x):
             for col in range(self.num_cells_y):
                 current_cell = self.cell_matrix[row][col]
@@ -95,11 +131,18 @@ class GameBoard:
                                                    self.cell_size,
                                                    self.cell_size), 2)
 
-                screen.blit(arial.render(f"{current_cell.value}", False, "#876af4"),
+                screen.blit(writer.render(f"{current_cell.value}", False, "#876af4"),
                             (current_cell.location[0] + int(self.cell_size // 2),
                              current_cell.location[1] + int(self.cell_size // 2)))
 
     def draw_board(self, screen: pygame.Surface):
+        """
+        Draw all the cells in the cell matrix to the screen at their respective location.
+
+        :param screen: the game screen
+        :return: None
+        """
+
         blitzs = []
         for row in range(self.num_cells_y):
             for col in range(self.num_cells_x):
@@ -108,7 +151,6 @@ class GameBoard:
 
         screen.blits(blitzs)
 
-    # stopped here.
     def zero_clicked(self, current_cell: Cell):
 
         # get_adjacency populates this cells adjacency list and determines value.
@@ -125,16 +167,10 @@ class GameBoard:
                 current.visited = True
                 current.get_adjacency(self.cell_matrix)
                 neighbors.extend(current.adjacent_list)
-                _render_zero_cell(current)
+                current.render_zero_cell()
                 for cell in current.adjacent_list:
-                    _render_zero_cell(cell)
+                    cell.render_zero_cell()
+                    cell.visited = True
             return self._search_for_zeros(neighbors)
         return
 
-
-def _render_zero_cell(current: Cell):
-    current.cell_surface.fill("#444444")
-    rendered_text = GameBoard.arial.render(f"{current.value}", False, "#876af4")
-    current.cell_surface.blit(rendered_text,
-                              (rendered_text.get_width() // 4,
-                               rendered_text.get_height() // 3))

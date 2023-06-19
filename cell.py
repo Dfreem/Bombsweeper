@@ -1,10 +1,16 @@
 from typing import Tuple, List
+from enum import Enum
 import pygame
-
-MINE = -1
+from sweeper_enums import SweeperFonts
 
 
 class Cell:
+    MINE = -1
+
+    class CellColors(Enum):
+        FLAGGED_CELL_COLOR = "#99aa11"
+        NORMAL_CELL_COLOR = "#adb5bd"
+        CLICKED_CELL_COLOR = "#ced4da"
 
     def __init__(self, location: Tuple[int, int], click_event: int, value: int = 0, color: str = "#777777",
                  size: int = 10):
@@ -28,7 +34,7 @@ class Cell:
         self.visited = False
         '''used while traversing the graph-like structored gameboard for zeros'''
 
-        self.click_event = click_event
+        self._click_event = click_event
         '''Custom :class:`pygame.event.Event` triggered when this cell is clicked.'''
 
         self.color: str = color
@@ -42,12 +48,16 @@ class Cell:
         self.cell_surface.fill(self.color)
         pygame.draw.rect(self.cell_surface, "black", self.cell_surface.get_rect(), 1)
 
-    def clicked(self, event):
-        """Check if the click event occurred in the position of this cell. If it did, post a new pygame event.
+    def update(self, event):
+        """Called on a cell when clicked. Post a custom :class:`pygame.event.Event`
+        containing the cells exact x and y coordinates on the board as well
+        as the row and column index.
 
         :param event: the click event to compare this cells position to.
         :returns: a boolean value indicating whether the event was successfully posted.
         """
+
+        self.cell_surface.fill(Cell.CellColors.CLICKED_CELL_COLOR.value)
 
         # compensate for the size of the cell, creates a click window rather than a small point.
         cell_offset = (self.size // 2)
@@ -63,10 +73,27 @@ class Cell:
                     "row": self.location[0] // self.size,
                     "col": self.location[1] // self.size
                 }
-                cell_event = pygame.event.Event(self.click_event, event_dict)
+                cell_event = pygame.event.Event(self._click_event, event_dict)
 
                 # return true if successful else false
-                return pygame.event.post(cell_event)
+                pygame.event.post(cell_event)
+
+    def flagged(self):
+        if self.is_flagged:
+            self.is_flagged = False
+            self.cell_surface.fill(Cell.CellColors.NORMAL_CELL_COLOR.value)
+        else:
+            self.is_flagged = True
+            self.cell_surface.fill(Cell.CellColors.FLAGGED_CELL_COLOR.value)
+
+    def render_zero_cell(self):
+        writer = SweeperFonts.ARIAL_18.value
+        clicked_color = Cell.CellColors.CLICKED_CELL_COLOR.value
+        self.cell_surface.fill(clicked_color)
+        rendered_text = writer.render(f"{self.value}", False, "#876af4")
+        self.cell_surface.blit(rendered_text,
+                               (rendered_text.get_width() // 4,
+                                   rendered_text.get_height() // 3))
 
     def get_adjacency(self, board_matrix):
         """find all the surrounding cells to this cell and add them to this cells adjacency list.
@@ -77,7 +104,7 @@ class Cell:
         :return: None
         """
 
-        if self.value == MINE:
+        if self.value == Cell.MINE:
             return
 
         # a cells location is an x, y value but we want the row and column.
@@ -103,7 +130,7 @@ class Cell:
                 current = board_matrix[col][row]
                 self.adjacent_list.append(current)
         for cell in self.adjacent_list:
-            if cell.value == MINE:
+            if cell.value == Cell.MINE:
                 adjacent_mines += 1
         self.value = adjacent_mines
 

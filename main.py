@@ -162,6 +162,32 @@ def difficulty_clicked(mouse_location: Tuple[int, int], choices: Tuple[pygame.Re
     return -1
 
 
+def cell_clicks(event: pygame.event.Event, mine_field: board.GameBoard, window: pygame.Surface):
+    """
+    handle a click event inside a :class:`board.Cell`.
+
+    :param window: the main game board
+    :param event: the click event that triggered this method.
+    :param mine_field: the current game board
+    :return: None
+    """
+
+    cell_index_x = event.pos[0] // CELL_SIZE
+    cell_index_y = event.pos[1] // CELL_SIZE
+    current_cell = mine_field.cell_matrix[cell_index_x][cell_index_y]
+    current_cell.update(event)
+
+    if current_cell.value > 0:
+        draw_cell_number(current_cell, window, current_cell.value)
+        pygame.display.flip()
+        return True
+    elif current_cell.value == 0:
+        mine_field.zero_clicked(current_cell)
+        return True
+    else:
+        return False
+
+
 def draw_cell_number(clicked, screen: pygame.Surface, number: int):
     """
     draw the number of adjacent mines on a cell when it is clicked
@@ -180,32 +206,6 @@ def draw_cell_number(clicked, screen: pygame.Surface, number: int):
 
     to_update = screen.blit(clicked.cell_surface, clicked.location)
     pygame.display.update(to_update)
-
-
-def cell_clicks(event: pygame.event.Event, mine_field: board.GameBoard, window: pygame.Surface):
-    """
-    handle a click event inside a :class:`board.Cell`.
-
-    :param window: the main game board
-    :param event: the click event that triggered this method.
-    :param mine_field: the current game board
-    :return: None
-    """
-
-    cell_index_x = event.pos[0] // CELL_SIZE
-    cell_index_y = event.pos[1] // CELL_SIZE
-    current_cell = mine_field.cell_matrix[cell_index_x][cell_index_y]
-    current_cell.clicked(event)
-
-    if current_cell.value > 0:
-        draw_cell_number(current_cell, window, current_cell.value)
-        pygame.display.flip()
-        return True
-    elif current_cell.value == 0:
-        mine_field.zero_clicked(current_cell)
-        return True
-    else:
-        return False
 
 
 def play_again():
@@ -317,6 +317,14 @@ def again_clicked(click_position: Tuple[int, int], button_rects: List[pygame.rec
     return False, False
 
 
+def flag_cell(clicked_coords: Tuple[int, int], gboard: board.GameBoard):
+    x_index = int(clicked_coords[0] // CELL_SIZE)
+    y_index = int(clicked_coords[1] // CELL_SIZE)
+
+    current_cell = gboard.cell_matrix[x_index][y_index]
+    current_cell.flagged()
+
+
 def main():
 
     difficulty = get_difficulty()
@@ -363,13 +371,18 @@ def main():
     while running:
         game_board.draw_board(screen)
         events = pygame.event.get()
+        mouse_butts = pygame.mouse.get_pressed(3)
+        clicked_coords = pygame.mouse.get_pos()
         for event in events:
             if event.type == pygame.QUIT:
                 running = False
                 pygame.quit()
                 return running
             if event.type == pygame.MOUSEBUTTONDOWN:
-                running = cell_clicks(event, game_board, screen)
+                if mouse_butts[0]:
+                    running = cell_clicks(event, game_board, screen)
+                elif mouse_butts[2]:
+                    flag_cell(clicked_coords, game_board)
 
         pygame.display.flip()
         screen.fill("#aaaaaa")
