@@ -2,19 +2,12 @@ import random
 from typing import Tuple, List
 import pygame
 from cell import Cell
-from sweeper_enums import SweeperFonts
+from sweeper_enums import SweeperFonts, SweeperColors
 
 pygame.font.init()
 
 
 class GameBoard:
-
-    # region --------------- theme settings ---------------
-
-    THEME_FONT1 = SweeperFonts.ACADEMY_20
-    THEME_FONT2 = SweeperFonts.ARIAL_18
-
-    # endregion
 
     def __init__(self, cells_x: int, cells_y: int, bombs: int, cell_size: int):
         """
@@ -78,7 +71,7 @@ class GameBoard:
         self._seed_mines()
         for row in self.cell_matrix:
             for cell in row:
-                _ = cell.get_adjacency(self.cell_matrix)
+                cell.get_adjacency(self.cell_matrix)
 
     def _seed_mines(self):
         rand = random.Random()
@@ -93,7 +86,11 @@ class GameBoard:
                 # cell creation
                 click_event = pygame.event.custom_type()
                 location: Tuple[int, int] = (row * self.cell_size, col * self.cell_size)
-                self.cell_matrix[row][col] = Cell(location, click_event, 0, "#777777", self.cell_size)
+
+                self.cell_matrix[row][col] = Cell(location,
+                                                  click_event,
+                                                  SweeperColors.CELL_NORMAL.value,
+                                                  0, self.cell_size)
 
         # populate mines based on required number of mines
         while left_to_seed > 0:
@@ -111,29 +108,14 @@ class GameBoard:
         # traverse the 2-d list of cells checking for bombs.
         # -1 == bomb, 0 == no bomb
 
-        writer = SweeperFonts.ARIAL_18.value
+        rendered_cells = []
         for row in range(self.num_cells_x):
             for col in range(self.num_cells_y):
                 current_cell = self.cell_matrix[row][col]
-
-                if current_cell.value == -1:
-                    pygame.draw.rect(screen, "red", (
-                        current_cell.location[0], current_cell.location[-1], self.cell_size,
-                        self.cell_size))
-                else:
-                    pygame.draw.rect(screen, "grey", (current_cell.location[0],
-                                                      current_cell.location[-1],
-                                                      self.cell_size,
-                                                      self.cell_size))
-
-                pygame.draw.rect(screen, "black", (current_cell.location[0],
-                                                   current_cell.location[-1],
-                                                   self.cell_size,
-                                                   self.cell_size), 2)
-
-                screen.blit(writer.render(f"{current_cell.value}", False, "#876af4"),
-                            (current_cell.location[0] + int(self.cell_size // 2),
-                             current_cell.location[1] + int(self.cell_size // 2)))
+                current_cell.render_revealed_cell()
+                rendered_cells.append((current_cell.cell_surface, current_cell.location))
+        screen.blits(rendered_cells)
+        pygame.display.flip()
 
     def draw_board(self, screen: pygame.Surface):
         """
@@ -152,25 +134,36 @@ class GameBoard:
         screen.blits(blitzs)
 
     def zero_clicked(self, current_cell: Cell):
-
+        if current_cell.is_flagged:
+            return
+        self._clear_visited()
         # get_adjacency populates this cells adjacency list and determines value.
         current_cell.get_adjacency(self.cell_matrix)
 
         # start recursion with copy of adjacency list
-        neighbors = current_cell.adjacent_list.copy()
+        neighbors = []
+        neighbors.extend(current_cell.adjacent_list)
         self._search_for_zeros(neighbors)
 
     def _search_for_zeros(self, neighbors: List[Cell]):
         if len(neighbors) > 0:
             current = neighbors.pop(0)
-            if current.value == 0 and not current.visited:
-                current.visited = True
-                current.get_adjacency(self.cell_matrix)
-                neighbors.extend(current.adjacent_list)
-                current.render_zero_cell()
-                for cell in current.adjacent_list:
-                    cell.render_zero_cell()
-                    cell.visited = True
+
+            # if we have found a zero, check all the neighbors
+            if current.value == 0:
+                if not current.visited and not current.is_flagged:
+                    current.visited = True
+                    current.get_adjacency(self.cell_matrix)
+                    neighbors.extend(current.adjacent_list)
+                    current.render_revealed_cell()
+                    for cell in current.adjacent_list:
+                        cell.render_revealed_cell()
+                        cell.visited = True
+
             return self._search_for_zeros(neighbors)
         return
 
+    def _clear_visited(self):
+        for row in self.cell_matrix:
+            for cell in row:
+                cell.visited = False

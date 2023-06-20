@@ -24,3 +24,16 @@ class SweeperFonts(Enum):
     FUTURA_18 = pygame.font.Font(pygame.font.match_font("Futura"), 18)
     FUTURA_20 = pygame.font.Font(pygame.font.match_font("Futura"), 20)
     FUTURA_22 = pygame.font.Font(pygame.font.match_font("Futura"), 22)
+
+
+class SweeperColors(Enum):
+    CELL_FLAGGED = "#94D1BE"
+    CELL_NORMAL = "#ADB5BD"
+    CELL_CLICKED = "#CED4DA"
+    CELL_TEXT = "#330C2F"
+    CELL_BORDER = "#3B413C"
+    BOARD_BG = "#C0BCB5"
+    POPUP_BG = "#94D1BE"
+    BOMB_BG = "#941C2F"
+    POPUP_TEXT = "#EFEFD0"
+

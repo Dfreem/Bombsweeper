@@ -1,26 +1,16 @@
 from typing import Tuple, List
-
 from pygame import time
 
 import board
 import cell
 import pygame
+from sweeper_enums import SweeperColors, SweeperFonts
 
 pygame.init()
 pygame.font.init()
 
 # ================
-#     Settings
-# ================
-
-FONT_COLOR_1 = "#083DF7"
-'''blue font color'''
-
-FONT_NOVA_MONO = pygame.font.match_font("NovaMono")
-'''Filepath to "Nova Mono" font'''
-
-BG_COLOR_1 = "#F7C208"
-'''orange color'''
+# region Settings
 
 CELL_SIZE = 40
 '''the length of the side of a cell. area = CELL_SIZE ** 2'''
@@ -31,13 +21,16 @@ BOARD_SIZE_HARD = 20
 
 BOMBS_EASY = int((BOARD_SIZE_EASY ** 2) * 0.1)
 BOMBS_MED = int((BOARD_SIZE_MED ** 2) * 0.2)
-BOMBS_HARD = int((BOARD_SIZE_EASY ** 2) * 0.4)
+BOMBS_HARD = int((BOARD_SIZE_HARD ** 2) * 0.2)
 
 # don't change these
 EASY = 0
 MED = 1
 HARD = 2
 CLOCK = pygame.time.Clock()
+
+# endregion
+# ================
 
 
 def get_difficulty():
@@ -53,7 +46,8 @@ def get_difficulty():
 
     difficulty = -1
     chosen = False
-    current_font = pygame.font.Font(FONT_NOVA_MONO, 16)
+    nova_font = SweeperFonts.NOVA_22.value
+    bg_color = SweeperColors.POPUP_BG.value
 
     # not the main display, just an options window.
     popup = pygame.display.set_mode((400, 250))
@@ -78,8 +72,9 @@ def get_difficulty():
                     chosen = True
 
         # refreshing screen
-        popup.fill(BG_COLOR_1)
-        rendered_text = current_font.render("Choose your difficulty", False, FONT_COLOR_1)
+        popup.fill(SweeperColors.POPUP_BG.value)
+
+        rendered_text = nova_font.render("Choose your difficulty", False, bg_color)
         render_difficulty_buttons(popup)
         popup.blit(rendered_text, (200 - (rendered_text.get_width() // 2), 10, 200, 100))
         pygame.display.flip()
@@ -98,6 +93,8 @@ def render_difficulty_buttons(window: pygame.Surface):
     # partitioning the difficulty popup into thirds for easier placement of items.
     width_thirds = window.get_width() // 3
     height_thirds = window.get_height() // 3
+    font_color = SweeperColors.CELL_TEXT.value
+    nova_font = SweeperFonts.NOVA_18.value
 
     # offset amount for aligning buttons. Before using the offset, width_thirds corresponds
     # to the right edge of a partition, the offset adjusts the location to the center of the partition
@@ -105,25 +102,24 @@ def render_difficulty_buttons(window: pygame.Surface):
 
     # difficulty radio buttons
     choice_easy = pygame.draw.circle(window,
-                                     FONT_COLOR_1,
+                                     font_color,
                                      (width_thirds - offset_increment, height_thirds * 2),
                                      10, 2)
 
     choice_med = pygame.draw.circle(window,
-                                    FONT_COLOR_1,
+                                    font_color,
                                     ((width_thirds * 2) - offset_increment, height_thirds * 2),
                                     10, 2)
 
     choice_hard = pygame.draw.circle(window,
-                                     FONT_COLOR_1,
+                                     font_color,
                                      (window.get_width() - offset_increment, height_thirds * 2),
                                      10, 2)
 
     # difficulty labels
-    nova_font = pygame.font.Font(FONT_NOVA_MONO, 16)
-    easy_text = nova_font.render("easy", True, FONT_COLOR_1)
-    medium_text = nova_font.render("medium", True, FONT_COLOR_1)
-    hard_text = nova_font.render("hard", True, FONT_COLOR_1)
+    easy_text = nova_font.render("easy", True, font_color)
+    medium_text = nova_font.render("medium", True, font_color)
+    hard_text = nova_font.render("hard", True, font_color)
 
     window.blit(easy_text,
                 (choice_easy.x - easy_text.get_width() // 4, choice_easy.y - 30,
@@ -175,10 +171,12 @@ def cell_clicks(event: pygame.event.Event, mine_field: board.GameBoard, window: 
     cell_index_x = event.pos[0] // CELL_SIZE
     cell_index_y = event.pos[1] // CELL_SIZE
     current_cell = mine_field.cell_matrix[cell_index_x][cell_index_y]
+    if current_cell.is_flagged:
+        return True
     current_cell.update(event)
-
     if current_cell.value > 0:
-        draw_cell_number(current_cell, window, current_cell.value)
+        # draw_cell_number(current_cell, window, current_cell.value)
+        current_cell.render_revealed_cell()
         pygame.display.flip()
         return True
     elif current_cell.value == 0:
@@ -199,8 +197,9 @@ def draw_cell_number(clicked, screen: pygame.Surface, number: int):
     :return: a new copy of the cell containing the number blitted to its Rect.
     """
 
-    nova = pygame.font.Font(FONT_NOVA_MONO, 18)
-    text = nova.render(f"{number}", True, FONT_COLOR_1)
+    nova = SweeperFonts.NOVA_18.value
+    font_color = SweeperColors.CELL_TEXT.value
+    text = nova.render(f"{number}", True, font_color)
     clicked.cell_surface.blit(text, ((clicked.size // 2) - (text.get_width() // 2),
                                      clicked.size // 4))
 
@@ -219,7 +218,9 @@ def play_again():
     # region -------- settings --------
 
     # pygame font for text rendering
-    nova_font = pygame.font.Font(FONT_NOVA_MONO, 20)
+    nova_font = SweeperFonts.NOVA_20.value
+    text_color = SweeperColors.POPUP_TEXT.value
+    bg_color = SweeperColors.POPUP_BG.value
 
     # not the main game window, should be released before finishing the method.
     popup = pygame.display.set_mode((500, 350))
@@ -235,7 +236,9 @@ def play_again():
     again = False
 
     half_popup = popup.get_width() // 2
-    play_again_text = nova_font.render("Would you like to play again?", False, FONT_COLOR_1)
+    play_again_text = nova_font.render("Would you like to play again?",
+                                       False, text_color)
+
     half_text = play_again_text.get_width() // 2
 
     # endregion
@@ -247,8 +250,8 @@ def play_again():
         :return: the rects for the yes and no button respectively
         """
 
-        _yes = pygame.draw.circle(popup, FONT_COLOR_1, (part_size_x * 2, part_size_y * 2), 10, 2)
-        _no = pygame.draw.circle(popup, FONT_COLOR_1, (part_size_x * 4, part_size_y * 2), 10, 2)
+        _yes = pygame.draw.circle(popup, text_color, (part_size_x * 2, part_size_y * 2), 10, 2)
+        _no = pygame.draw.circle(popup, text_color, (part_size_x * 4, part_size_y * 2), 10, 2)
         return _yes, _no
 
     rendered_text.append((play_again_text, (half_popup - half_text, part_size_y * 3)))
@@ -256,12 +259,12 @@ def play_again():
     # region ------------ play again screen loop ------------
 
     while not button_clicked:
-        popup.fill(BG_COLOR_1)
+        popup.fill(bg_color)
         yes, no = _draw_circles()
-        rendered_text.append((nova_font.render("yes", True, FONT_COLOR_1),
+        rendered_text.append((nova_font.render("yes", True, text_color),
                               (yes.x, yes.y - 40)))
 
-        rendered_text.append((nova_font.render("no", True, FONT_COLOR_1),
+        rendered_text.append((nova_font.render("no", True, text_color),
                               (no.x, no.y - 40)))
 
         for event in pygame.event.get():

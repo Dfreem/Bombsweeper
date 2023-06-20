@@ -1,19 +1,12 @@
 from typing import Tuple, List
-from enum import Enum
 import pygame
-from sweeper_enums import SweeperFonts
+from sweeper_enums import SweeperFonts, SweeperColors
 
 
 class Cell:
     MINE = -1
 
-    class CellColors(Enum):
-        FLAGGED_CELL_COLOR = "#99aa11"
-        NORMAL_CELL_COLOR = "#adb5bd"
-        CLICKED_CELL_COLOR = "#ced4da"
-
-    def __init__(self, location: Tuple[int, int], click_event: int, value: int = 0, color: str = "#777777",
-                 size: int = 10):
+    def __init__(self, location: Tuple[int, int], click_event: int, color: str, value: int = 0, size: int = 10):
         """
         A cell on the game-board.
 
@@ -46,7 +39,9 @@ class Cell:
         self.adjacent_list: List[Cell] = []
 
         self.cell_surface.fill(self.color)
-        pygame.draw.rect(self.cell_surface, "black", self.cell_surface.get_rect(), 1)
+        pygame.draw.rect(self.cell_surface,
+                         SweeperColors.CELL_BORDER.value,
+                         self.cell_surface.get_rect(), 1)
 
     def update(self, event):
         """Called on a cell when clicked. Post a custom :class:`pygame.event.Event`
@@ -57,7 +52,7 @@ class Cell:
         :returns: a boolean value indicating whether the event was successfully posted.
         """
 
-        self.cell_surface.fill(Cell.CellColors.CLICKED_CELL_COLOR.value)
+        self.cell_surface.fill(SweeperColors.CELL_CLICKED.value)
 
         # compensate for the size of the cell, creates a click window rather than a small point.
         cell_offset = (self.size // 2)
@@ -65,7 +60,6 @@ class Cell:
         # x and y range for click window == cell_offset
         if self.location[-1] - cell_offset < event.pos[1] < self.location[1] + cell_offset:
             if self.location[0] - cell_offset < event.pos[0] < self.location[0] + cell_offset:
-
                 # custom event contains exact x and y on screen as well as row and column index within the board.
                 event_dict = {
                     "x": self.location[0],
@@ -81,19 +75,28 @@ class Cell:
     def flagged(self):
         if self.is_flagged:
             self.is_flagged = False
-            self.cell_surface.fill(Cell.CellColors.NORMAL_CELL_COLOR.value)
+            self.cell_surface.fill(SweeperColors.CELL_NORMAL.value)
         else:
             self.is_flagged = True
-            self.cell_surface.fill(Cell.CellColors.FLAGGED_CELL_COLOR.value)
+            self.cell_surface.fill(SweeperColors.CELL_FLAGGED.value)
 
-    def render_zero_cell(self):
+    def render_revealed_cell(self):
+        if self.is_flagged:
+            return
         writer = SweeperFonts.ARIAL_18.value
-        clicked_color = Cell.CellColors.CLICKED_CELL_COLOR.value
-        self.cell_surface.fill(clicked_color)
-        rendered_text = writer.render(f"{self.value}", False, "#876af4")
-        self.cell_surface.blit(rendered_text,
-                               (rendered_text.get_width() // 4,
-                                   rendered_text.get_height() // 3))
+        clicked_color = SweeperColors.CELL_CLICKED.value
+        font_color = SweeperColors.CELL_TEXT.value
+        mine_color = SweeperColors.BOMB_BG.value
+        bomb = pygame.image.load_extended("images/mine.png")
+
+        if self.value == Cell.MINE:
+            self.cell_surface.fill(mine_color)
+            bomb = pygame.transform.scale(bomb, (30, 30))
+            self.cell_surface.blit(bomb, get_center(bomb, self.cell_surface))
+        else:
+            self.cell_surface.fill(clicked_color)
+            rendered_text = writer.render(f"{self.value}", True, font_color)
+            self.cell_surface.blit(rendered_text, get_center(rendered_text, self.cell_surface))
 
     def get_adjacency(self, board_matrix):
         """find all the surrounding cells to this cell and add them to this cells adjacency list.
@@ -104,9 +107,10 @@ class Cell:
         :return: None
         """
 
-        if self.value == Cell.MINE:
+        if self.value == Cell.MINE or self.is_flagged:
             return
 
+        self.adjacent_list.clear()
         # a cells location is an x, y value but we want the row and column.
         this_y = (self.location[1] // self.size)
         this_x = (self.location[0] // self.size)
@@ -125,12 +129,21 @@ class Cell:
             cols = cols[1:]
         elif cols[-1] >= len(board_matrix[0]):
             cols = cols[:-1]
+
+        # check all the neighboring cells of this cell
         for row in rows:
             for col in cols:
+                # first add all the neighbors to the adjacency list
                 current = board_matrix[col][row]
                 self.adjacent_list.append(current)
+
+        # then iterate through the list checking for mines.
         for cell in self.adjacent_list:
             if cell.value == Cell.MINE:
                 adjacent_mines += 1
         self.value = adjacent_mines
 
+
+def get_center(from_surface, to_surface):
+    return ((to_surface.get_width() // 2) - (from_surface.get_width() // 2),
+            (to_surface.get_height() // 2) - (from_surface.get_height() // 2))
